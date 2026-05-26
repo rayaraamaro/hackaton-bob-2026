@@ -9,7 +9,13 @@ from datetime import datetime
 from typing import Any, Dict, Set
 
 from fastapi import WebSocket
-import redis.asyncio as redis
+
+try:
+    import redis.asyncio as redis
+    REDIS_AVAILABLE = True
+except ImportError:
+    REDIS_AVAILABLE = False
+    redis = None
 
 
 class RealtimeService:
@@ -17,7 +23,7 @@ class RealtimeService:
     Manages WebSocket connections and real-time updates.
     """
     
-    def __init__(self, redis_client: redis.Redis):
+    def __init__(self, redis_client: Any):
         self.redis = redis_client
         self.active_connections: Dict[str, Set[WebSocket]] = {}
     

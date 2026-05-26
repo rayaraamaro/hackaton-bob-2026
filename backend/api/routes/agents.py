@@ -6,7 +6,6 @@ Handles agent-related endpoints.
 
 from fastapi import APIRouter, HTTPException
 
-from database.firestore import db_client
 from agents.agent_loader import AGENT_DEFINITIONS
 
 

@@ -7,7 +7,6 @@ Tracks token usage, enforces limits, and provides real-time updates.
 from typing import Dict, Any
 from datetime import datetime
 
-from database.firestore import FirestoreClient
 from services.realtime_service import RealtimeService
 
 
@@ -33,7 +32,7 @@ class TokenMonitor:
         }
     }
     
-    def __init__(self, db: FirestoreClient, realtime: RealtimeService):
+    def __init__(self, db, realtime: RealtimeService):
         self.db = db
         self.realtime = realtime
     
@@ -83,7 +82,7 @@ class TokenMonitor:
             "timestamp": datetime.utcnow()
         }
         
-        # Store in Firestore
+        # Store in database
         await self.db.create_token_usage(usage_record)
         
         # Update project totals

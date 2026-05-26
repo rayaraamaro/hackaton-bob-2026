@@ -15,15 +15,7 @@ class Settings(BaseSettings):
     PORT: int = 8000
     ENVIRONMENT: str = "development"
     
-    # Google Cloud (Optional for local testing)
-    GCP_PROJECT_ID: str = "local-dev-project"
-    GCP_REGION: str = "us-central1"
-    GOOGLE_APPLICATION_CREDENTIALS: str = ""
-    
-    # Firestore
-    FIRESTORE_DATABASE_ID: str = "(default)"
-    
-    # Redis
+    # Redis (Optional for real-time features)
     REDIS_HOST: str = "localhost"
     REDIS_PORT: int = 6379
     REDIS_PASSWORD: str = ""

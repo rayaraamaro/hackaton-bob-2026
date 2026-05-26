@@ -27,7 +27,7 @@ from slowapi.errors import RateLimitExceeded
 from api.routes import projects, agents, websocket
 from config.settings import settings
 
-# Import database module (automatically selects SQLite or Firestore)
+# Import database module (uses SQLite)
 from database import db_client, init_db, close_db
 
 
@@ -117,7 +117,7 @@ if __name__ == "__main__":
     import uvicorn
     uvicorn.run(
         "main:app",
-        host="0.0.0.0",
+        host="127.0.0.1",
         port=settings.PORT,
         reload=True if settings.ENVIRONMENT == "development" else False
     )

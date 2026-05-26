@@ -15,7 +15,6 @@ agent selection, execution order, and output generation.
 from typing import List, Dict, Any
 from datetime import datetime
 
-from database.firestore import FirestoreClient
 from services.token_monitor import TokenMonitor
 from services.realtime_service import RealtimeService
 from agents.agent_loader import AGENT_DEFINITIONS, AGENT_SELECTION_RULES, get_specialist_persona
@@ -32,7 +31,7 @@ class BOBOrchestrator:
     - Track progress
     """
     
-    def __init__(self, db: FirestoreClient, token_monitor: TokenMonitor, 
+    def __init__(self, db, token_monitor: TokenMonitor,
                  realtime: RealtimeService):
         self.db = db
         self.token_monitor = token_monitor
@@ -205,34 +204,59 @@ class BOBOrchestrator:
         
         return result
     
-    async def _generate_agent_output(self, agent_id: str, 
+    async def _generate_agent_output(self, agent_id: str,
                                     input_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         BOB generates output for the specified agent.
         
         This is the core intelligence - BOB acts as each agent type
-        and generates appropriate outputs.
+        and generates appropriate outputs based on specialist personas.
         """
         agent = AGENT_DEFINITIONS.get(agent_id)
         if not agent:
             raise ValueError(f"Agent {agent_id} not found")
         
-        # BOB implements agent-specific logic here
-        # For MVP, return placeholder output
-        # In production, BOB would generate actual code/content
+        # Get project description from input
+        project_description = input_data.get("project_description", "")
+        requirements = input_data.get("requirements", {})
+        
+        # Generate code based on agent type
+        artifacts = []
+        content = ""
+        
+        if agent_id == "ui_specialist":
+            # Generate React + TypeScript + Tailwind components
+            content = f"Generated React components for: {project_description}"
+            artifacts = self._generate_ui_code(project_description, requirements)
+            
+        elif agent_id == "api_specialist":
+            # Generate FastAPI endpoints
+            content = f"Generated FastAPI REST API for: {project_description}"
+            artifacts = self._generate_api_code(project_description, requirements)
+            
+        elif agent_id == "logic_specialist":
+            # Generate business logic
+            content = f"Generated business logic for: {project_description}"
+            artifacts = self._generate_logic_code(project_description, requirements)
+            
+        elif agent_id == "ecommerce_specialist":
+            # Generate e-commerce specification
+            content = f"Generated e-commerce specification for: {project_description}"
+            artifacts = self._generate_ecommerce_spec(project_description, requirements)
         
         output = {
             "agent_id": agent_id,
             "agent_name": agent["name"],
-            "content": f"Generated output for {agent['name']}",
-            "artifacts": [],
+            "content": content,
+            "artifacts": artifacts,
             "metadata": {
                 "agent_type": agent["type"],
-                "capabilities_used": agent["capabilities"]
+                "capabilities_used": agent["capabilities"],
+                "project_description": project_description
             }
         }
         
-        # Estimate tokens used (BOB would track actual usage)
+        # Estimate tokens used
         tokens_used = agent["estimated_tokens"]
         cost = self.token_monitor.calculate_cost(tokens_used)
         
@@ -241,6 +265,248 @@ class BOBOrchestrator:
             "tokens_used": tokens_used,
             "cost": cost
         }
+    
+    def _generate_ui_code(self, description: str, requirements: Dict[str, bool]) -> List[Dict[str, str]]:
+        """Generate React + TypeScript + Tailwind UI code based on description."""
+        artifacts = []
+        
+        # Parse description to extract meaningful content
+        description_lower = description.lower()
+        
+        # Determine project title and main heading
+        if "hello world" in description_lower or "olá mundo" in description_lower or "ola mundo" in description_lower:
+            title = "Hello World"
+            main_heading = "Olá, Mundo!" if "olá" in description_lower or "ola" in description_lower else "Hello, World!"
+            description_text = "A simple hello world application"
+        elif "website" in description_lower or "site" in description_lower:
+            # Extract what the site should display
+            if "h1" in description_lower:
+                # Try to extract text between quotes
+                import re
+                match = re.search(r'["\']([^"\']+)["\']', description)
+                if match:
+                    main_heading = match.group(1)
+                    title = main_heading[:50]  # Limit title length
+                    description_text = f"Website displaying: {main_heading}"
+                else:
+                    title = "My Website"
+                    main_heading = "Welcome to My Website"
+                    description_text = "A custom website"
+            else:
+                title = "My Website"
+                main_heading = "Welcome"
+                description_text = description[:100]
+        else:
+            # Generic fallback
+            title = "My Application"
+            main_heading = "Welcome"
+            description_text = description[:100]
+        
+        # Generate index.html
+        artifacts.append({
+            "path": "index.html",
+            "content": f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{title}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+</body>
+</html>"""
+        })
+        
+        # Generate App.tsx
+        artifacts.append({
+            "path": "src/App.tsx",
+            "content": f"""// src/App.tsx
+import React from 'react';
+
+export function App() {{
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+      <div className="container mx-auto px-4 py-8">
+        <header className="text-center mb-12">
+          <h1 className="text-4xl font-bold text-gray-900 mb-4">
+            {main_heading}
+          </h1>
+          <p className="text-lg text-gray-600">
+            {description_text}
+          </p>
+        </header>
+        
+        <main className="max-w-4xl mx-auto">
+          <div className="bg-white rounded-lg shadow-lg p-8">
+            <h2 className="text-2xl font-semibold mb-4">Welcome!</h2>
+            <p className="text-gray-700 mb-6">
+              This is your generated application. Start building amazing features!
+            </p>
+            
+            <button className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors">
+              Get Started
+            </button>
+          </div>
+        </main>
+      </div>
+    </div>
+  );
+}}
+
+export default App;
+"""
+        })
+        
+        # Generate main.tsx
+        artifacts.append({
+            "path": "src/main.tsx",
+            "content": """// src/main.tsx
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import { App } from './App';
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);
+"""
+        })
+        
+        return artifacts
+    
+    def _generate_api_code(self, description: str, requirements: Dict[str, bool]) -> List[Dict[str, str]]:
+        """Generate FastAPI REST API code."""
+        artifacts = []
+        
+        # Generate main.py
+        artifacts.append({
+            "path": "main.py",
+            "content": f"""# main.py
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+app = FastAPI(
+    title="{description}",
+    description="Generated REST API",
+    version="1.0.0"
+)
+
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@app.get("/")
+async def root():
+    return {{
+        "message": "Welcome to {description} API",
+        "docs": "/docs"
+    }}
+
+@app.get("/health")
+async def health_check():
+    return {{"status": "healthy"}}
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
+"""
+        })
+        
+        # Generate requirements.txt
+        artifacts.append({
+            "path": "requirements.txt",
+            "content": """fastapi==0.104.1
+uvicorn[standard]==0.24.0
+pydantic==2.5.0
+"""
+        })
+        
+        return artifacts
+    
+    def _generate_logic_code(self, description: str, requirements: Dict[str, bool]) -> List[Dict[str, str]]:
+        """Generate business logic code."""
+        artifacts = []
+        
+        # Generate services.py
+        artifacts.append({
+            "path": "services.py",
+            "content": f"""# services.py
+\"\"\"
+Business logic for {description}
+\"\"\"
+
+class BusinessService:
+    \"\"\"Main business service.\"\"\"
+    
+    def __init__(self):
+        pass
+    
+    async def process_data(self, data: dict) -> dict:
+        \"\"\"Process business data.\"\"\"
+        # Add your business logic here
+        return {{"status": "processed", "data": data}}
+"""
+        })
+        
+        return artifacts
+    
+    def _generate_ecommerce_spec(self, description: str, requirements: Dict[str, bool]) -> List[Dict[str, str]]:
+        """Generate e-commerce specification."""
+        artifacts = []
+        
+        # Generate specification.md
+        artifacts.append({
+            "path": "specification.md",
+            "content": f"""# E-commerce Specification: {description}
+
+## Overview
+This document specifies the e-commerce system requirements.
+
+## Entities
+
+### Products
+- id (integer, primary key)
+- name (string, required)
+- description (text)
+- price (decimal, required)
+- stock (integer, required)
+- created_at (timestamp)
+- updated_at (timestamp)
+
+### Orders
+- id (integer, primary key)
+- customer_name (string, required)
+- total (decimal, required)
+- status (enum: pending, paid, shipped, delivered)
+- created_at (timestamp)
+
+## API Endpoints
+
+### Products
+- POST /products - Create product
+- GET /products - List products
+- GET /products/{{id}} - Get product
+- PATCH /products/{{id}} - Update product
+- DELETE /products/{{id}} - Delete product
+
+### Orders
+- POST /orders - Create order
+- GET /orders - List orders
+- GET /orders/{{id}} - Get order
+- PATCH /orders/{{id}}/status - Update order status
+"""
+        })
+        
+        return artifacts
     
     async def orchestrate_execution(self, project_id: str) -> Dict[str, Any]:
         """

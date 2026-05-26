@@ -112,6 +112,7 @@ class AgentLoader:
             'ecommerce_specialist': 'domain',
             'analytics_specialist': 'analytics',
             'auth_specialist': 'backend',
+            'prompt_interpreter_specialist': 'interpreter',
         }
         return type_mapping.get(specialist_id, 'general')
     

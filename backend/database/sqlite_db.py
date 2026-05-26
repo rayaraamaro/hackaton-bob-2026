@@ -103,7 +103,7 @@ class SQLiteClient:
         """)
         
         self.conn.commit()
-        print(f"✅ SQLite database initialized: {self.db_path}")
+        print(f"[OK] SQLite database initialized: {self.db_path}")
     
     async def close(self):
         """Close SQLite connection."""

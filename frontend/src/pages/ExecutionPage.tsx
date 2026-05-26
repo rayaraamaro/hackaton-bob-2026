@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getProject, getProjectStatus, executeProject, estimateCost, getProjectOutput, Project, Task, ProjectOutput } from '../services/api';
+import { getProject, getProjectStatus, executeProject, estimateCost, getProjectOutput, downloadProjectZip, Project, Task, ProjectOutput } from '../services/api';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { TokenMonitor } from '../components/TokenMonitor';
 import { ProgressBar } from '../components/ProgressBar';
@@ -21,6 +21,7 @@ export function ExecutionPage() {
   const [showOutput, setShowOutput] = useState(false);
   const [output, setOutput] = useState<ProjectOutput | null>(null);
   const [loadingOutput, setLoadingOutput] = useState(false);
+  const [exportingZip, setExportingZip] = useState(false);
   const { lastMessage } = useWebSocket(projectId || null);
   const { toasts, hideToast, success, error: showError, info } = useToast();
 
@@ -115,6 +116,21 @@ export function ExecutionPage() {
       showError('Failed to load project output. Please try again.');
     } finally {
       setLoadingOutput(false);
+    }
+  };
+
+  const handleExportZip = async () => {
+    if (!projectId || !project) return;
+    
+    setExportingZip(true);
+    try {
+      await downloadProjectZip(projectId, project.name);
+      success('Project exported successfully!');
+    } catch (error) {
+      console.error('Failed to export project:', error);
+      showError('Failed to export project. Please try again.');
+    } finally {
+      setExportingZip(false);
     }
   };
 
@@ -304,6 +320,32 @@ export function ExecutionPage() {
             </button>
           )}
 
+          {/* Export ZIP Button */}
+          {(project.status === 'completed' || project.status === 'executing') && (
+            <button
+              onClick={handleExportZip}
+              disabled={exportingZip}
+              className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white py-4 px-6 rounded-xl font-semibold text-lg hover:from-green-700 hover:to-emerald-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 mt-4"
+            >
+              {exportingZip ? (
+                <span className="flex items-center justify-center">
+                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  Baixando arquivo...
+                </span>
+              ) : (
+                <span className="flex items-center justify-center">
+                  <svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+                  </svg>
+                  📦 Baixar Arquivo (.zip)
+                </span>
+              )}
+            </button>
+          )}
+
           {/* Progress Bar */}
           {project.status === 'executing' && totalTasks > 0 && (
             <div className="mt-6">
@@ -391,8 +433,40 @@ export function ExecutionPage() {
                 </div>
               </div>
 
+              {/* Generated Files Section */}
+              {output.generated_files && Object.keys(output.generated_files).length > 0 && (
+                <div className="mb-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+                    <svg className="w-5 h-5 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Generated Files ({Object.keys(output.generated_files).length})
+                  </h3>
+                  <div className="space-y-3">
+                    {Object.entries(output.generated_files).map(([filename, content]) => (
+                      <div key={filename} className="border border-gray-200 rounded-lg overflow-hidden">
+                        <div className="bg-gradient-to-r from-green-50 to-emerald-50 px-4 py-2 border-b border-green-200">
+                          <p className="font-mono text-sm font-semibold text-green-900">{filename}</p>
+                        </div>
+                        <div className="p-4 bg-gray-50">
+                          <pre className="text-xs text-gray-800 font-mono whitespace-pre-wrap overflow-x-auto">
+                            {content}
+                          </pre>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Task Outputs */}
               <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+                  <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                  Agent Outputs ({output.outputs.length})
+                </h3>
                 {output.outputs.map((taskOutput, index) => (
                   <div key={taskOutput.task_id} className="border border-gray-200 rounded-lg overflow-hidden">
                     {/* Task Header */}
@@ -421,17 +495,19 @@ export function ExecutionPage() {
                         <div className="space-y-3">
                           <div>
                             <p className="text-sm font-medium text-gray-700 mb-1">Content:</p>
-                            <div className="bg-gray-50 rounded p-3 text-sm text-gray-800 font-mono whitespace-pre-wrap">
-                              {typeof taskOutput.output === 'string'
-                                ? taskOutput.output
-                                : JSON.stringify(taskOutput.output, null, 2)}
+                            <div className="bg-gray-50 rounded p-3 text-sm text-gray-800">
+                              {taskOutput.output.content || 'No content'}
                             </div>
                           </div>
-                          {taskOutput.result && (
+                          {taskOutput.output.artifacts && taskOutput.output.artifacts.length > 0 && (
                             <div>
-                              <p className="text-sm font-medium text-gray-700 mb-1">Result:</p>
-                              <div className="bg-gray-50 rounded p-3 text-sm text-gray-800 font-mono whitespace-pre-wrap">
-                                {JSON.stringify(taskOutput.result, null, 2)}
+                              <p className="text-sm font-medium text-gray-700 mb-1">Artifacts ({taskOutput.output.artifacts.length}):</p>
+                              <div className="space-y-2">
+                                {taskOutput.output.artifacts.map((artifact: any, idx: number) => (
+                                  <div key={idx} className="bg-gray-50 rounded p-2 text-xs">
+                                    <span className="font-mono text-blue-600">{artifact.path}</span>
+                                  </div>
+                                ))}
                               </div>
                             </div>
                           )}

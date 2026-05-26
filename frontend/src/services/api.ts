@@ -122,9 +122,14 @@ export const estimateCost = async (projectId: string): Promise<CostEstimate> => 
 export interface ProjectOutput {
   project_id: string;
   project_name: string;
+  project_description: string;
   project_status: string;
   total_tasks: number;
   outputs: TaskOutput[];
+  generated_files?: { [filename: string]: string };
+  agent_outputs?: any[];
+  total_files?: number;
+  total_agents?: number;
 }
 
 export interface TaskOutput {
@@ -141,6 +146,31 @@ export interface TaskOutput {
 export const getProjectOutput = async (projectId: string): Promise<ProjectOutput> => {
   const response = await api.get(`/api/projects/${projectId}/output`);
   return response.data;
+};
+
+export const exportProject = async (projectId: string): Promise<Blob> => {
+  const response = await api.get(`/api/projects/${projectId}/export`, {
+    responseType: 'blob',
+  });
+  return response.data;
+};
+
+export const downloadProjectZip = async (projectId: string, projectName: string) => {
+  try {
+    const blob = await exportProject(projectId);
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const timestamp = new Date().toISOString().split('T')[0];
+    link.download = `${projectName.toLowerCase().replace(/\s+/g, '-')}-${timestamp}.zip`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error('Failed to download project ZIP:', error);
+    throw error;
+  }
 };
 
 // Agents API

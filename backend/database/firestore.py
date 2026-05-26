@@ -8,8 +8,14 @@ import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from google.cloud import firestore
-from google.cloud.firestore_v1 import AsyncClient
+try:
+    from google.cloud import firestore
+    from google.cloud.firestore_v1 import AsyncClient
+    FIRESTORE_AVAILABLE = True
+except ImportError:
+    FIRESTORE_AVAILABLE = False
+    firestore = None
+    AsyncClient = None
 
 from config.settings import settings
 from database.models.project import Project
