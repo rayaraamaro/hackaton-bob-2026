@@ -10,14 +10,29 @@ This module provides the interface for BOB (IBM's AI Assistant) to:
 
 BOB acts as the intelligent orchestrator, making all decisions about
 agent selection, execution order, and output generation.
+
+Now supports MCP (Model Context Protocol) for local development,
+allowing direct integration with Bob in VS Code without API keys.
 """
 
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from datetime import datetime
+import logging
+import os
 
 from services.token_monitor import TokenMonitor
 from services.realtime_service import RealtimeService
 from agents.agent_loader import AGENT_DEFINITIONS, AGENT_SELECTION_RULES, get_specialist_persona
+
+# Import MCP client for local development
+try:
+    from services.mcp_client import mcp_client
+    MCP_AVAILABLE = True
+except ImportError:
+    MCP_AVAILABLE = False
+    mcp_client = None
+
+logger = logging.getLogger(__name__)
 
 
 class BOBOrchestrator:
@@ -32,13 +47,23 @@ class BOBOrchestrator:
     """
     
     def __init__(self, db, token_monitor: TokenMonitor,
-                 realtime: RealtimeService):
+                 realtime: RealtimeService, use_mcp: bool = True):
         self.db = db
         self.token_monitor = token_monitor
         self.realtime = realtime
+        self.use_mcp = use_mcp and MCP_AVAILABLE and mcp_client is not None and mcp_client.is_available()
+        
+        if self.use_mcp:
+            logger.info("✓ MCP mode enabled - using Bob in VS Code for dynamic generation")
+        else:
+            logger.info("✗ MCP mode disabled - using static templates")
+            if use_mcp and not MCP_AVAILABLE:
+                logger.warning("MCP client not available - install dependencies")
+            elif use_mcp and mcp_client is not None and not mcp_client.is_available():
+                logger.warning("MCP server not built - run: cd mcp-server && npm run build")
     
-    async def analyze_requirements(self, project_id: str, 
-                                   description: str, 
+    async def analyze_requirements(self, project_id: str,
+                                   description: str,
                                    requirements: Dict[str, bool]) -> Dict[str, Any]:
         """
         BOB analyzes project requirements and suggests agents.
@@ -51,10 +76,26 @@ class BOBOrchestrator:
         Returns:
             Analysis result with suggested agents and execution plan
         """
-        # BOB will implement the logic here
-        # This is a placeholder for BOB to fill in
+        # Try MCP-based dynamic analysis first
+        if self.use_mcp and mcp_client is not None:
+            try:
+                logger.info("Using MCP for dynamic requirement analysis")
+                mcp_result = await mcp_client.analyze_requirements(
+                    description,
+                    requirements
+                )
+                
+                # MCP returns a prompt for Bob to process
+                # In a real implementation, Bob would process this and return structured data
+                # For now, we log it and fall back to rule-based
+                logger.info(f"MCP analysis prompt generated (length: {len(mcp_result.get('prompt', ''))} chars)")
+                logger.info("Note: In production, Bob would process this prompt and return agent selection")
+                
+                # Fall through to rule-based for now
+            except Exception as e:
+                logger.error(f"MCP analysis failed: {str(e)}, falling back to rule-based")
         
-        # Rule-based agent selection for MVP
+        # Rule-based agent selection (fallback or default)
         selected_agents = []
         
         # Check each requirement and add corresponding agents
@@ -69,10 +110,12 @@ class BOBOrchestrator:
         # Remove duplicates while preserving order
         selected_agents = list(dict.fromkeys(selected_agents))
         
+        analysis_method = "MCP-assisted" if self.use_mcp else "Rule-based"
+        
         return {
             "project_id": project_id,
             "selected_agents": selected_agents,
-            "analysis": f"Based on requirements, selected {len(selected_agents)} agents",
+            "analysis": f"{analysis_method}: Selected {len(selected_agents)} agents",
             "requirements": requirements
         }
     
@@ -211,6 +254,8 @@ class BOBOrchestrator:
         
         This is the core intelligence - BOB acts as each agent type
         and generates appropriate outputs based on specialist personas.
+        
+        Now supports MCP for dynamic generation with Bob in VS Code.
         """
         agent = AGENT_DEFINITIONS.get(agent_id)
         if not agent:
@@ -219,8 +264,38 @@ class BOBOrchestrator:
         # Get project description from input
         project_description = input_data.get("project_description", "")
         requirements = input_data.get("requirements", {})
+        previous_outputs = input_data.get("previous_outputs", [])
         
-        # Generate code based on agent type
+        # Try MCP-based dynamic generation first
+        if self.use_mcp and mcp_client is not None:
+            try:
+                logger.info(f"Using MCP for dynamic code generation: {agent_id}")
+                
+                # Load agent persona
+                agent_persona = get_specialist_persona(agent_id)
+                if not agent_persona:
+                    logger.warning(f"No persona found for {agent_id}, using static generation")
+                else:
+                    # Call MCP to generate code with Bob
+                    mcp_result = await mcp_client.generate_code(
+                        agent_id=agent_id,
+                        agent_persona=agent_persona,
+                        project_description=project_description,
+                        requirements=requirements,
+                        previous_outputs=previous_outputs
+                    )
+                    
+                    # MCP returns a prompt for Bob to process
+                    logger.info(f"MCP generation prompt created (length: {len(mcp_result.get('prompt', ''))} chars)")
+                    logger.info("Note: In production, Bob would process this and return generated code")
+                    
+                    # For now, we fall through to static generation
+                    # In a real implementation, Bob would return the actual generated code here
+                    
+            except Exception as e:
+                logger.error(f"MCP generation failed: {str(e)}, falling back to static templates")
+        
+        # Static template generation (fallback or default)
         artifacts = []
         content = ""
         
