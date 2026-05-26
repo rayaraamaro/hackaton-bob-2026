@@ -1,52 +1,58 @@
 # Como Iniciar o Servidor Backend
 
-## Após remover o Firestore, siga estes passos:
+## Método Simples (Recomendado)
 
-### 1. Instalar dependências (se necessário)
 ```bash
 cd backend
-pip install -r requirements.txt
+python start.py
 ```
 
-### 2. Iniciar o servidor
+## Método Alternativo
+
 ```bash
 cd backend
 python main.py
 ```
 
-Ou usando uvicorn diretamente:
+## Verificar se está funcionando
+
+1. Abra o navegador em: http://localhost:8000/health
+2. Você deve ver: `{"status":"healthy","orchestrator":"BOB","version":"1.0.0"}`
+
+## Documentação da API
+
+- Swagger UI: http://localhost:8000/docs
+- ReDoc: http://localhost:8000/redoc
+
+## Endpoints Principais
+
+- `GET /health` - Health check
+- `GET /api/agents` - Lista todos os agentes disponíveis
+- `POST /api/projects` - Cria um novo projeto
+- `GET /api/projects/{id}` - Obtém detalhes de um projeto
+
+## Troubleshooting
+
+### Porta 8000 já está em uso
+
 ```bash
-cd backend
-uvicorn main:app --reload --host 127.0.0.1 --port 8000
+# Windows
+netstat -ano | findstr :8000
+taskkill /PID <PID> /F
+
+# Linux/Mac
+lsof -ti:8000 | xargs kill -9
 ```
 
-### 3. Verificar se está funcionando
-Abra o navegador em: http://127.0.0.1:8000/health
+### Agentes não carregam
 
-Você deve ver:
-```json
-{
-  "status": "healthy",
-  "orchestrator": "BOB",
-  "version": "1.0.0"
-}
-```
+Verifique se os arquivos markdown dos agentes existem em:
+- `backend/agents/specialists/*.md`
 
-### 4. Testar o endpoint de agentes
-Abra: http://127.0.0.1:8000/api/agents
+### Erro de importação
 
-Você deve ver a lista de 4 agentes disponíveis.
+Certifique-se de que está no diretório `backend` e que o ambiente virtual está ativado (se estiver usando).
 
-## Notas Importantes
+## Parar o Servidor
 
-- ✅ O Firestore foi completamente removido
-- ✅ Agora usa apenas SQLite (arquivo `local_db.sqlite` será criado automaticamente)
-- ✅ Não precisa de credenciais do Google Cloud
-- ✅ Tudo roda localmente
-
-## Se o erro persistir
-
-1. Certifique-se de que nenhum outro processo está usando a porta 8000
-2. Verifique se todas as dependências estão instaladas
-3. Reinicie o servidor backend
-4. Recarregue a página do frontend (F5)
+Pressione `CTRL+C` no terminal onde o servidor está rodando.

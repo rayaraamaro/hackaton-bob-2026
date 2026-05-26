@@ -1,375 +1,129 @@
-# AI Agent Project Studio - MVP
+# AI Agent Project Studio
 
-A BOB-powered agent orchestration platform where users provide project descriptions, and **BOB (IBM's AI Assistant)** acts as the orchestrator to select and coordinate specialized agents to build solutions.
+Sistema de orquestração de agentes especialistas powered by BOB (IBM's AI Assistant).
 
-## 🎯 Overview
+## 🚀 Quick Start
 
-This MVP enables users to:
-- Input project requirements through a guided form
-- Have BOB automatically select appropriate agents
-- Execute agents sequentially with real-time progress tracking
-- Monitor token usage and costs
-- Receive generated artifacts (code files)
+### 1. Instalar Dependências
 
-## 🏗️ Architecture
-
-### Key Components
-
-1. **Frontend**: React 18 + TypeScript + Tailwind CSS
-2. **Backend**: Python 3.11+ + FastAPI
-3. **Database**: Firestore (Google Cloud)
-4. **Cache**: Redis (Memorystore)
-5. **Orchestrator**: BOB (IBM's AI Assistant)
-6. **Infrastructure**: Google Cloud Platform (Terraform)
-7. **Real-time**: WebSocket (FastAPI)
-
-### BOB as Orchestrator
-
-BOB serves as the intelligent orchestrator:
-- Analyzes user requirements
-- Selects appropriate agents
-- Generates agent outputs
-- Coordinates execution flow
-- Tracks progress and token usage
-
-## 📁 Project Structure
-
-```
-.
-├── backend/                    # Python FastAPI backend
-│   ├── agents/                # Agent definitions
-│   │   └── agent_definitions.py
-│   ├── api/                   # API routes
-│   │   └── routes/
-│   │       ├── projects.py
-│   │       ├── agents.py
-│   │       └── websocket.py
-│   ├── config/                # Configuration
-│   │   └── settings.py
-│   ├── database/              # Database layer
-│   │   ├── firestore.py
-│   │   └── models/
-│   │       ├── project.py
-│   │       ├── agent.py
-│   │       ├── task.py
-│   │       └── token_usage.py
-│   ├── services/              # Business logic
-│   │   ├── bob_orchestrator.py
-│   │   ├── token_monitor.py
-│   │   └── realtime_service.py
-│   ├── main.py               # FastAPI app
-│   ├── requirements.txt      # Python dependencies
-│   ├── Dockerfile           # Docker configuration
-│   └── .env.example         # Environment template
-│
-├── infrastructure/           # Terraform IaC
-│   └── terraform/
-│       ├── main.tf
-│       ├── variables.tf
-│       ├── outputs.tf
-│       └── modules/
-│           ├── firestore/
-│           ├── redis/
-│           ├── storage/
-│           └── cloudrun/
-│
-└── README.md                # This file
+#### Backend
+```bash
+cd backend
+pip install -r requirements.txt
 ```
 
-## 🚀 Getting Started
-
-### Prerequisites
-
-- Python 3.11+
-- Google Cloud Platform account
-- Terraform 1.0+
-- Redis (for local development)
-
-### Backend Setup
-
-1. **Clone the repository**
-   ```bash
-   cd backend
-   ```
-
-2. **Create virtual environment**
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
-
-3. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. **Configure environment**
-   ```bash
-   cp .env.example .env
-   # Edit .env with your configuration
-   ```
-
-5. **Run the backend**
-   ```bash
-   python main.py
-   ```
-
-   The API will be available at `http://localhost:8000`
-   - API docs: `http://localhost:8000/docs`
-   - Health check: `http://localhost:8000/health`
-
-### Infrastructure Deployment
-
-1. **Navigate to Terraform directory**
-   ```bash
-   cd infrastructure/terraform
-   ```
-
-2. **Initialize Terraform**
-   ```bash
-   terraform init
-   ```
-
-3. **Create terraform.tfvars**
-   ```hcl
-   project_id = "your-gcp-project-id"
-   region     = "us-central1"
-   environment = "dev"
-   ```
-
-4. **Plan deployment**
-   ```bash
-   terraform plan
-   ```
-
-5. **Apply infrastructure**
-   ```bash
-   terraform apply
-   ```
-
-## 📡 API Endpoints
-
-### Projects
-
-- `POST /api/projects` - Create new project
-- `GET /api/projects/{id}` - Get project details
-- `GET /api/projects/{id}/status` - Get execution status
-- `POST /api/projects/{id}/execute` - Start execution
-- `GET /api/projects/{id}/tokens` - Get token usage
-- `POST /api/projects/{id}/estimate` - Estimate cost
-
-### Agents
-
-- `GET /api/agents` - List available agents
-- `GET /api/agents/{id}` - Get agent details
-
-### WebSocket
-
-- `WS /ws/{project_id}` - Real-time updates
-
-## 🤖 Available Agents
-
-1. **Database Agent** - Generates database schemas and migrations
-2. **UI Agent** - Creates React components and layouts
-3. **Logic Agent** - Implements business logic and services
-4. **API Agent** - Designs REST API endpoints
-5. **FAQ Agent** - Generates FAQ content and documentation
-
-## 💰 Token Monitoring
-
-The system tracks and enforces token usage:
-
-- **Default Limits**: 50,000 tokens, $5.00 cost
-- **Alerts**: 80% (warning), 95% (critical)
-- **Real-time Updates**: WebSocket notifications
-- **Cost Estimation**: Pre-execution estimates
-
-## 🔄 Real-Time Updates
-
-WebSocket events:
-
-- `task:update` - Task status changes
-- `token:update` - Token usage updates
-- `progress:update` - Execution progress
-- `budget:alert` - Budget threshold alerts
-- `error:occurred` - Error notifications
-
-## 🔐 Environment Variables
-
-### Backend (.env)
-
-```env
-# Server
-PORT=8000
-ENVIRONMENT=development
-
-# Google Cloud
-GCP_PROJECT_ID=your-project-id
-GCP_REGION=us-central1
-GOOGLE_APPLICATION_CREDENTIALS=./service-account-key.json
-
-# Firestore
-FIRESTORE_DATABASE_ID=(default)
-
-# Redis
-REDIS_HOST=localhost
-REDIS_PORT=6379
-REDIS_PASSWORD=
-
-# Token Limits
-DEFAULT_TOKEN_LIMIT=50000
-DEFAULT_COST_LIMIT=5.00
-ALERT_THRESHOLD_WARNING=0.80
-ALERT_THRESHOLD_CRITICAL=0.95
-
-# CORS
-CORS_ORIGINS=http://localhost:5173
-
-# Rate Limiting
-RATE_LIMIT_PER_MINUTE=60
+#### Frontend
+```bash
+cd frontend
+npm install
 ```
 
-## 🐳 Docker Deployment
-
-### Build Backend Image
+### 2. Iniciar o Backend
 
 ```bash
 cd backend
-docker build -t bob-backend .
+python start.py
 ```
 
-### Run with Docker
+O servidor estará disponível em: http://localhost:8000
+
+### 3. Iniciar o Frontend
 
 ```bash
-docker run -p 8000:8000 \
-  -e GCP_PROJECT_ID=your-project \
-  -e REDIS_HOST=redis \
-  bob-backend
+cd frontend
+npm run dev
 ```
 
-## 📊 Database Schema
+O frontend estará disponível em: http://localhost:5173
 
-### Collections
+## 📁 Estrutura do Projeto
 
-- **projects** - Project metadata and status
-- **agents** - Agent definitions
-- **tasks** - Individual task executions
-- **executionPlans** - Execution plans
-- **tokenUsage** - Token consumption logs
+```
+hackaton-bob-2026/
+├── backend/                    # Backend FastAPI
+│   ├── agents/                # Agentes especialistas
+│   │   ├── specialists/       # Definições dos agentes (.md)
+│   │   └── agent_loader.py    # Carregador de agentes
+│   ├── api/                   # Rotas da API
+│   │   └── routes/
+│   ├── database/              # Camada de banco de dados (SQLite)
+│   ├── services/              # Serviços de negócio
+│   ├── config/                # Configurações
+│   ├── main.py                # Aplicação principal
+│   ├── start.py               # Script de inicialização
+│   └── requirements.txt       # Dependências Python
+│
+└── frontend/                  # Frontend React + TypeScript
+    ├── src/
+    │   ├── components/        # Componentes reutilizáveis
+    │   ├── pages/             # Páginas da aplicação
+    │   ├── services/          # Serviços (API client)
+    │   └── hooks/             # React hooks customizados
+    └── package.json           # Dependências Node
 
-### Indexes
-
-- `projects`: userId, status, createdAt
-- `tasks`: projectId, executionOrder
-- `tokenUsage`: projectId, timestamp
-
-## 🧪 Testing
-
-```bash
-# Run tests (when implemented)
-pytest
-
-# Run with coverage
-pytest --cov=backend
 ```
 
-## 📈 Monitoring
+## 🤖 Agentes Disponíveis
 
-- **Cloud Monitoring**: Automatic metrics collection
-- **Cloud Logging**: Centralized log aggregation
-- **Health Checks**: `/health` endpoint
-- **Token Tracking**: Real-time usage monitoring
+- **API Specialist** - Cria APIs REST com FastAPI
+- **UI Specialist** - Desenvolve interfaces com React + TypeScript + Tailwind
+- **Logic Specialist** - Implementa regras de negócio em Python
+- **E-commerce Specialist** - Especialista em funcionalidades de e-commerce
+- **Prompt Interpreter Specialist** - Interpreta e analisa requisitos
 
-## 🔧 Development
+## 🔧 Tecnologias
 
-### Code Style
+### Backend
+- Python 3.11+
+- FastAPI
+- SQLite
+- Pydantic
 
-- Python: Follow PEP 8
-- Use type hints
-- Document functions with docstrings
+### Frontend
+- React 18
+- TypeScript
+- Tailwind CSS
+- Vite
+- Axios
 
-### Git Workflow
+## 📝 Como Usar
 
-1. Create feature branch
-2. Make changes
-3. Test locally
-4. Submit pull request
+1. Acesse o frontend em http://localhost:5173
+2. Preencha o nome e descrição do projeto
+3. Selecione os requisitos (Database, Auth, Payment, FAQ)
+4. Clique em "Create Project with BOB"
+5. Acompanhe a execução dos agentes
+6. Baixe o código gerado
 
-## 🚢 Deployment
+## 🐛 Troubleshooting
 
-### Manual Deployment
+### Backend não inicia
+- Verifique se a porta 8000 está livre
+- Confirme que as dependências estão instaladas: `pip install -r requirements.txt`
 
-```bash
-# Deploy backend to Cloud Run
-gcloud run deploy bob-api \
-  --source ./backend \
-  --platform managed \
-  --region us-central1 \
-  --allow-unauthenticated
-```
+### Frontend não conecta ao backend
+- Verifique se o backend está rodando em http://localhost:8000
+- Teste o endpoint: http://localhost:8000/health
 
-### Automated Deployment
+### Agentes não carregam
+- Verifique se os arquivos `.md` existem em `backend/agents/specialists/`
+- Reinicie o servidor backend
 
-Use the provided deployment script:
+## 📚 Documentação da API
 
-```bash
-./scripts/deploy.sh
-```
+Com o backend rodando, acesse:
+- Swagger UI: http://localhost:8000/docs
+- ReDoc: http://localhost:8000/redoc
 
-## 📝 Success Criteria
+## 🎯 Endpoints Principais
 
-✅ User can input project description  
-✅ BOB selects appropriate agents  
-✅ BOB executes agents sequentially  
-✅ Real-time progress updates via WebSocket  
-✅ Token usage tracked and displayed  
-✅ Budget limits enforced  
-✅ Alerts at 80% and 95% thresholds  
-✅ Cost estimation before execution  
-✅ Infrastructure provisioned via Terraform  
+- `GET /health` - Health check
+- `GET /api/agents` - Lista agentes disponíveis
+- `POST /api/projects` - Cria novo projeto
+- `GET /api/projects/{id}` - Detalhes do projeto
+- `POST /api/projects/{id}/execute` - Executa o projeto
+- `GET /api/projects/{id}/output` - Obtém saída do projeto
 
-## 🤝 Contributing
+## 📄 Licença
 
-1. Fork the repository
-2. Create your feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
-
-## 📄 License
-
-This project is part of the IBM BOB ecosystem.
-
-## 🆘 Support
-
-For issues and questions:
-- Check the documentation
-- Review API docs at `/docs`
-- Contact the development team
-
-## 🎯 Roadmap
-
-### Phase 1 (Current - MVP)
-- ✅ Core infrastructure
-- ✅ 5 basic agents
-- ✅ Sequential execution
-- ✅ Token monitoring
-- ✅ Real-time updates
-
-### Phase 2 (Future)
-- Parallel agent execution
-- Advanced agent library
-- User authentication
-- Project templates
-- Enhanced monitoring
-
-### Phase 3 (Future)
-- Multi-user support
-- Agent marketplace
-- Custom agent creation
-- Advanced analytics
-- CI/CD integration
-
----
-
-**Built with ❤️ using BOB (IBM's AI Assistant)**
+Made with Bob - IBM's AI Assistant

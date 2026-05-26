@@ -50,9 +50,16 @@ class AgentLoader:
         name = name_match.group(1).strip() if name_match else specialist_id.replace('_', ' ').title()
         
         # Extract role/description from "Persona Name and Role" section
-        role_match = re.search(r'##\s+1\.\s+Persona Name and Role\s+\*\*(.+?)\*\*\s+—\s+(.+?)(?=\n\n|\n#)', 
+        # Try multiple patterns to handle different markdown formats
+        role_match = re.search(r'##\s+\d+\.\s+Persona Name and Role\s+\*\*(.+?)\*\*\s+—\s+(.+?)(?=\n\n|\n##)',
                               content, re.DOTALL)
-        description = role_match.group(2).strip() if role_match else ""
+        if not role_match:
+            # Try alternative pattern without bold markers
+            role_match = re.search(r'##\s+\d+\.\s+Persona Name and Role\s+(.+?)(?=\n\n|\n##)',
+                                  content, re.DOTALL)
+            description = role_match.group(1).strip() if role_match else ""
+        else:
+            description = role_match.group(2).strip()
         
         # Extract technology stack
         tech_stack = self._extract_tech_stack(content)
@@ -92,13 +99,30 @@ class AgentLoader:
         capabilities = []
         
         # Look for Core Responsibilities or similar sections
-        resp_match = re.search(r'##\s+\d+\.\s+Core Responsibilities.*?\n(.*?)(?=\n##|\Z)', 
-                              content, re.DOTALL)
-        if resp_match:
-            resp_section = resp_match.group(1)
-            # Extract bullet points
-            cap_items = re.findall(r'-\s+(.+?)(?=\n-|\n\n|\Z)', resp_section, re.DOTALL)
-            capabilities.extend([cap.strip() for cap in cap_items if cap.strip()])
+        # Try multiple section names and patterns
+        section_patterns = [
+            r'##\s+\d+\.\s+Core Responsibilities\s*\n(.*?)(?=\n##|\Z)',
+            r'##\s+\d+\.\s+Code Generation Standards\s*\n(.*?)(?=\n##|\Z)',
+            r'##\s+\d+\.\s+API Standards\s*\n(.*?)(?=\n##|\Z)',
+            r'As the .+?, I create .+? that are:\s*\n(.*?)(?=\n##|\n---)',
+        ]
+        
+        for pattern in section_patterns:
+            resp_match = re.search(pattern, content, re.DOTALL)
+            if resp_match:
+                resp_section = resp_match.group(1)
+                # Extract bullet points (handle both - and * bullets)
+                cap_items = re.findall(r'[-*]\s+\*\*(.+?)\*\*|[-*]\s+(.+?)(?=\n[-*]|\n\n|\n###|\Z)', resp_section, re.DOTALL)
+                for item in cap_items:
+                    # item is a tuple from the regex groups
+                    text = item[0] if item[0] else item[1]
+                    if text and text.strip():
+                        # Clean up the text
+                        cleaned = text.strip().split('\n')[0]  # Take first line only
+                        if cleaned and len(cleaned) > 5:  # Ignore very short items
+                            capabilities.append(cleaned)
+                if capabilities:
+                    break
         
         return capabilities[:5]  # Limit to top 5 capabilities
     
