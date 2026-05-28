@@ -1,7 +1,8 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { HomePage } from './pages/HomePage';
+import { NewHomePage } from './pages/NewHomePage';
 import { ExecutionPage } from './pages/ExecutionPage';
+import { GeminiTestPage } from './pages/GeminiTestPage';
 
 function App() {
   return (
@@ -12,8 +13,9 @@ function App() {
       }}
     >
       <Routes>
-        <Route path="/" element={<HomePage />} />
+        <Route path="/" element={<NewHomePage />} />
         <Route path="/execution/:projectId" element={<ExecutionPage />} />
+        <Route path="/gemini-test" element={<GeminiTestPage />} />
       </Routes>
     </Router>
   );

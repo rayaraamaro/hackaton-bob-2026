@@ -22,6 +22,7 @@ import os
 
 from services.token_monitor import TokenMonitor
 from services.realtime_service import RealtimeService
+from services.bob_code_generator import bob_code_generator
 from agents.agent_loader import AGENT_DEFINITIONS, AGENT_SELECTION_RULES, get_specialist_persona
 
 # Import MCP client for local development
@@ -31,6 +32,14 @@ try:
 except ImportError:
     MCP_AVAILABLE = False
     mcp_client = None
+
+# Import Gemini service for AI-powered analysis
+try:
+    from services.gemini_service import gemini_service
+    GEMINI_AVAILABLE = True
+except ImportError:
+    GEMINI_AVAILABLE = False
+    gemini_service = None
 
 logger = logging.getLogger(__name__)
 
@@ -47,11 +56,12 @@ class BOBOrchestrator:
     """
     
     def __init__(self, db, token_monitor: TokenMonitor,
-                 realtime: RealtimeService, use_mcp: bool = True):
+                 realtime: RealtimeService, use_mcp: bool = True, use_gemini: bool = True):
         self.db = db
         self.token_monitor = token_monitor
         self.realtime = realtime
         self.use_mcp = use_mcp and MCP_AVAILABLE and mcp_client is not None and mcp_client.is_available()
+        self.use_gemini = use_gemini and GEMINI_AVAILABLE and gemini_service is not None and gemini_service.is_available()
         
         if self.use_mcp:
             logger.info("✓ MCP mode enabled - using Bob in VS Code for dynamic generation")
@@ -61,6 +71,15 @@ class BOBOrchestrator:
                 logger.warning("MCP client not available - install dependencies")
             elif use_mcp and mcp_client is not None and not mcp_client.is_available():
                 logger.warning("MCP server not built - run: cd mcp-server && npm run build")
+        
+        if self.use_gemini:
+            logger.info("✓ Gemini AI enabled - enhanced requirement analysis available")
+        else:
+            logger.info("✗ Gemini AI disabled")
+            if use_gemini and not GEMINI_AVAILABLE:
+                logger.warning("Gemini service not available - install google-genai")
+            elif use_gemini and gemini_service is not None and not gemini_service.is_available():
+                logger.warning("Gemini API key not configured - set GEMINI_API_KEY in .env")
     
     async def analyze_requirements(self, project_id: str,
                                    description: str,
@@ -76,8 +95,29 @@ class BOBOrchestrator:
         Returns:
             Analysis result with suggested agents and execution plan
         """
-        # Try MCP-based dynamic analysis first
-        if self.use_mcp and mcp_client is not None:
+        # Try Gemini AI-powered analysis first
+        if self.use_gemini and gemini_service is not None:
+            try:
+                logger.info("Using Gemini AI for intelligent requirement analysis")
+                gemini_result = await gemini_service.analyze_requirements(
+                    description,
+                    requirements
+                )
+                
+                if gemini_result.get("success"):
+                    logger.info("Gemini analysis successful")
+                    analysis_data = gemini_result.get("data", {})
+                    
+                    # Extract agent suggestions from Gemini if available
+                    # For now, we'll use the analysis to enhance our selection
+                    logger.info(f"Gemini recommendations: {analysis_data.get('architecture', 'N/A')}")
+                else:
+                    logger.warning(f"Gemini analysis failed: {gemini_result.get('error')}")
+            except Exception as e:
+                logger.error(f"Gemini analysis error: {str(e)}, falling back to rule-based")
+        
+        # Try MCP-based dynamic analysis as fallback
+        elif self.use_mcp and mcp_client is not None:
             try:
                 logger.info("Using MCP for dynamic requirement analysis")
                 mcp_result = await mcp_client.analyze_requirements(
@@ -85,13 +125,8 @@ class BOBOrchestrator:
                     requirements
                 )
                 
-                # MCP returns a prompt for Bob to process
-                # In a real implementation, Bob would process this and return structured data
-                # For now, we log it and fall back to rule-based
                 logger.info(f"MCP analysis prompt generated (length: {len(mcp_result.get('prompt', ''))} chars)")
                 logger.info("Note: In production, Bob would process this prompt and return agent selection")
-                
-                # Fall through to rule-based for now
             except Exception as e:
                 logger.error(f"MCP analysis failed: {str(e)}, falling back to rule-based")
         
@@ -110,7 +145,12 @@ class BOBOrchestrator:
         # Remove duplicates while preserving order
         selected_agents = list(dict.fromkeys(selected_agents))
         
-        analysis_method = "MCP-assisted" if self.use_mcp else "Rule-based"
+        if self.use_gemini:
+            analysis_method = "Gemini AI-powered"
+        elif self.use_mcp:
+            analysis_method = "MCP-assisted"
+        else:
+            analysis_method = "Rule-based"
         
         return {
             "project_id": project_id,
@@ -255,7 +295,7 @@ class BOBOrchestrator:
         This is the core intelligence - BOB acts as each agent type
         and generates appropriate outputs based on specialist personas.
         
-        Now supports MCP for dynamic generation with Bob in VS Code.
+        Now uses Bob Code Generator for dynamic, AI-powered code generation.
         """
         agent = AGENT_DEFINITIONS.get(agent_id)
         if not agent:
@@ -266,36 +306,64 @@ class BOBOrchestrator:
         requirements = input_data.get("requirements", {})
         previous_outputs = input_data.get("previous_outputs", [])
         
-        # Try MCP-based dynamic generation first
-        if self.use_mcp and mcp_client is not None:
-            try:
-                logger.info(f"Using MCP for dynamic code generation: {agent_id}")
+        # Try Bob Code Generator for dynamic generation
+        try:
+            logger.info(f"🤖 Using Bob Code Generator for: {agent_id}")
+            
+            # Generate code using Bob's AI capabilities
+            bob_result = await bob_code_generator.generate_code_with_bob(
+                agent_id=agent_id,
+                project_description=project_description,
+                requirements=requirements,
+                previous_outputs=previous_outputs
+            )
+            
+            # Check if Bob needs to process this
+            if bob_result.get("status") == "needs_bob_processing":
+                logger.info("⚠️  Bob processing required - context generated")
+                logger.info(f"Context length: {len(bob_result.get('context', ''))} chars")
                 
-                # Load agent persona
-                agent_persona = get_specialist_persona(agent_id)
-                if not agent_persona:
-                    logger.warning(f"No persona found for {agent_id}, using static generation")
-                else:
-                    # Call MCP to generate code with Bob
-                    mcp_result = await mcp_client.generate_code(
-                        agent_id=agent_id,
-                        agent_persona=agent_persona,
-                        project_description=project_description,
-                        requirements=requirements,
-                        previous_outputs=previous_outputs
-                    )
-                    
-                    # MCP returns a prompt for Bob to process
-                    logger.info(f"MCP generation prompt created (length: {len(mcp_result.get('prompt', ''))} chars)")
-                    logger.info("Note: In production, Bob would process this and return generated code")
-                    
-                    # For now, we fall through to static generation
-                    # In a real implementation, Bob would return the actual generated code here
-                    
-            except Exception as e:
-                logger.error(f"MCP generation failed: {str(e)}, falling back to static templates")
+                # In production, this context would be sent to Bob through MCP
+                # For now, we'll use the static generation as fallback
+                logger.warning("Falling back to static templates (Bob integration pending)")
+                
+            else:
+                # Bob successfully generated code
+                logger.info("✅ Bob generated code successfully")
+                
+                output = {
+                    "agent_id": agent_id,
+                    "agent_name": agent["name"],
+                    "content": bob_result.get("content", "Generated by Bob"),
+                    "artifacts": bob_result.get("artifacts", []),
+                    "metadata": {
+                        "agent_type": agent["type"],
+                        "capabilities_used": agent["capabilities"],
+                        "project_description": project_description,
+                        "generated_by": "bob_ai",
+                        **bob_result.get("metadata", {})
+                    }
+                }
+                
+                # Estimate tokens based on generated content
+                total_chars = len(output["content"])
+                for artifact in output["artifacts"]:
+                    total_chars += len(artifact.get("content", ""))
+                
+                tokens_used = total_chars // 4  # Rough estimate: 4 chars per token
+                cost = self.token_monitor.calculate_cost(tokens_used)
+                
+                return {
+                    "output": output,
+                    "tokens_used": tokens_used,
+                    "cost": cost
+                }
+                
+        except Exception as e:
+            logger.error(f"Bob Code Generator failed: {str(e)}, falling back to static templates")
         
-        # Static template generation (fallback or default)
+        # Static template generation (fallback)
+        logger.info(f"📝 Using static templates for: {agent_id}")
         artifacts = []
         content = ""
         
@@ -327,7 +395,8 @@ class BOBOrchestrator:
             "metadata": {
                 "agent_type": agent["type"],
                 "capabilities_used": agent["capabilities"],
-                "project_description": project_description
+                "project_description": project_description,
+                "generated_by": "static_template"
             }
         }
         

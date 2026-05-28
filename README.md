@@ -2,7 +2,32 @@
 
 Sistema de orquestração de agentes especialistas powered by BOB (IBM's AI Assistant).
 
-## 🚀 Quick Start
+## ⚡ NEW: Bob Integration via MCP
+
+**You can now use Bob directly in VS Code to create and manage projects!**
+
+🎯 **No API key required** - Use Bob's MCP integration to interact with your backend
+
+📚 **Quick Start**: See [QUICK_START.md](QUICK_START.md) for a 5-minute setup guide
+
+📖 **Full Guide**: See [BOB_USAGE_GUIDE.md](BOB_USAGE_GUIDE.md) for detailed documentation
+
+### What Bob Can Do Now
+
+- ✅ Create projects with natural language
+- ✅ Execute projects to generate code
+- ✅ Retrieve and save generated files
+- ✅ Check project status and costs
+- ✅ List available specialist agents
+- ✅ All through simple conversations!
+
+**Example conversation with Bob:**
+```
+You: "Create an e-commerce platform with authentication and a product catalog"
+Bob: [Creates project, executes it, and shows you the generated code]
+```
+
+## 🚀 Quick Start (Traditional Web UI)
 
 ### 1. Instalar Dependências
 

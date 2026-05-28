@@ -184,6 +184,167 @@ export const getAgent = async (agentId: string): Promise<Agent> => {
   return response.data;
 };
 
+// MCP API - Bob Integration
+export interface MCPAnalysisResult {
+  success: boolean;
+  analysis?: any;
+  message: string;
+}
+
+export interface EnhanceDescriptionRequest {
+  description: string;
+  requirements: ProjectRequirements;
+}
+
+export interface SuggestRequirementsRequest {
+  description: string;
+}
+
+export interface SuggestedRequirements {
+  success: boolean;
+  suggested_requirements: ProjectRequirements;
+  analysis?: any;
+  message: string;
+}
+
+export interface MCPFeedback {
+  type: 'info' | 'warning' | 'error';
+  message: string;
+}
+
+export interface AnalyzeInputResult {
+  success: boolean;
+  feedback: MCPFeedback[];
+  analysis?: any;
+  message: string;
+}
+
+export const enhanceDescription = async (data: EnhanceDescriptionRequest): Promise<MCPAnalysisResult> => {
+  const response = await api.post('/api/mcp/enhance-description', data);
+  return response.data;
+};
+
+export const suggestRequirements = async (data: SuggestRequirementsRequest): Promise<SuggestedRequirements> => {
+  const response = await api.post('/api/mcp/suggest-requirements', data);
+  return response.data;
+};
+
+export const analyzeInput = async (description: string, requirements?: ProjectRequirements): Promise<AnalyzeInputResult> => {
+  const response = await api.post('/api/mcp/analyze-input', {
+    description,
+    requirements: requirements || null,
+  });
+  return response.data;
+};
+
+export const getMCPStatus = async (): Promise<{ available: boolean; message: string }> => {
+  const response = await api.get('/api/mcp/status');
+  return response.data;
+};
+
+// Gemini AI API
+export interface GeminiHealthResponse {
+  status: string;
+  gemini_available: boolean;
+  model: string;
+  message: string;
+}
+
+export interface GenerateTextRequest {
+  prompt: string;
+  temperature?: number;
+  max_tokens?: number;
+  system_instruction?: string;
+}
+
+export interface GenerateTextResponse {
+  success: boolean;
+  text: string;
+  tokens_used: number;
+  model: string;
+  error?: string;
+}
+
+export interface AnalyzeCodeRequest {
+  code: string;
+  language: string;
+  task?: string;
+}
+
+export interface GenerateCodeRequest {
+  description: string;
+  language: string;
+  requirements?: string[];
+}
+
+export interface StructuredOutputRequest {
+  prompt: string;
+  schema: Record<string, any>;
+  temperature?: number;
+}
+
+export const getGeminiHealth = async (): Promise<GeminiHealthResponse> => {
+  const response = await api.get('/api/gemini/health');
+  return response.data;
+};
+
+export const generateText = async (data: GenerateTextRequest): Promise<GenerateTextResponse> => {
+  const response = await api.post('/api/gemini/generate', data);
+  return response.data;
+};
+
+export const analyzeCode = async (data: AnalyzeCodeRequest) => {
+  const response = await api.post('/api/gemini/analyze-code', data);
+  return response.data;
+};
+
+export const generateCode = async (data: GenerateCodeRequest) => {
+  const response = await api.post('/api/gemini/generate-code', data);
+  return response.data;
+};
+
+export const generateStructuredOutput = async (data: StructuredOutputRequest) => {
+  const response = await api.post('/api/gemini/structured-output', data);
+  return response.data;
+};
+
+export const analyzeRequirementsWithGemini = async (
+  description: string,
+  requirements: ProjectRequirements
+) => {
+  const response = await api.post('/api/gemini/analyze-requirements', requirements, {
+    params: { description }
+  });
+  return response.data;
+};
+
+// Analyze Project with Gemini
+export interface AnalyzeProjectRequest {
+  description: string;
+  requirements: ProjectRequirements;
+}
+
+export interface AgentSuggestion {
+  agent_id: string;
+  agent_name: string;
+  reason: string;
+  estimated_tokens: number;
+}
+
+export interface AnalyzeProjectResponse {
+  success: boolean;
+  suggested_agents: AgentSuggestion[];
+  total_estimated_tokens: number;
+  total_estimated_cost: number;
+  analysis: string;
+  error?: string;
+}
+
+export const analyzeProject = async (data: AnalyzeProjectRequest): Promise<AnalyzeProjectResponse> => {
+  const response = await api.post('/api/gemini/analyze-project', data);
+  return response.data;
+};
+
 export default api;
 
 // Made with Bob

@@ -5,11 +5,22 @@ Manages application configuration using Pydantic Settings.
 """
 
 from pydantic_settings import BaseSettings
-from typing import List
+from typing import List, Optional
 
 
 class Settings(BaseSettings):
     """Application settings."""
+    
+    # IBM Bob API Configuration
+    BOB_API_KEY: Optional[str] = None
+    BOBSHELL_API_KEY: Optional[str] = None
+    BOB_API_URL: str = "https://api.bob.ibm.com/v1"
+    
+    # Gemini AI Configuration
+    GEMINI_API_KEY: Optional[str] = None
+    GEMINI_MODEL: str = "gemini-2.5-flash"  # Working model verified with API key
+    GEMINI_TEMPERATURE: float = 0.7
+    GEMINI_MAX_TOKENS: int = 8000
     
     # Server Configuration
     PORT: int = 8000
@@ -33,8 +44,9 @@ class Settings(BaseSettings):
     RATE_LIMIT_PER_MINUTE: int = 60
     
     class Config:
-        env_file = ".env"
+        env_file = "../.env"
         case_sensitive = True
+        env_file_encoding = 'utf-8'
 
 
 # Global settings instance

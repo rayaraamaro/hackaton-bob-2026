@@ -1,6 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { createProject, listAgents, Agent, ProjectRequirements } from '../services/api';
+import {
+  createProject,
+  listAgents,
+  Agent,
+  ProjectRequirements,
+  suggestRequirements,
+  analyzeInput,
+  getMCPStatus,
+  getGeminiHealth,
+  generateText
+} from '../services/api';
 import { Toast } from '../components/Toast';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { useToast } from '../hooks/useToast';
@@ -10,7 +20,12 @@ export function HomePage() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  const { toasts, hideToast, success, error: showError } = useToast();
+  const [mcpAvailable, setMcpAvailable] = useState(false);
+  const [geminiAvailable, setGeminiAvailable] = useState(false);
+  const [analyzingInput, setAnalyzingInput] = useState(false);
+  const [suggestingRequirements, setSuggestingRequirements] = useState(false);
+  const [enhancingDescription, setEnhancingDescription] = useState(false);
+  const { toasts, hideToast, success, error: showError, info } = useToast();
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -32,8 +47,35 @@ export function HomePage() {
         showError('Failed to load available agents. Please refresh the page.');
       }
     };
+    
+    const checkMCPStatus = async () => {
+      try {
+        const status = await getMCPStatus();
+        setMcpAvailable(status.available);
+        if (status.available) {
+          info('🤖 Bob is ready to assist you!');
+        }
+      } catch (error) {
+        console.error('Failed to check MCP status:', error);
+      }
+    };
+    
+    const checkGeminiStatus = async () => {
+      try {
+        const health = await getGeminiHealth();
+        setGeminiAvailable(health.gemini_available);
+        if (health.gemini_available) {
+          info('✨ Gemini AI is ready to enhance your descriptions!');
+        }
+      } catch (error) {
+        console.error('Failed to check Gemini status:', error);
+      }
+    };
+    
     fetchAgents();
-  }, [showError]);
+    checkMCPStatus();
+    checkGeminiStatus();
+  }, [showError, info]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,6 +127,110 @@ export function HomePage() {
     });
   };
 
+  const handleSuggestRequirements = async () => {
+    if (!formData.description.trim()) {
+      showError('Please enter a project description first');
+      return;
+    }
+
+    if (!mcpAvailable) {
+      showError('Bob is not available. Please check MCP server status.');
+      return;
+    }
+
+    setSuggestingRequirements(true);
+    try {
+      const result = await suggestRequirements({ description: formData.description });
+      
+      if (result.success) {
+        setFormData({
+          ...formData,
+          requirements: result.suggested_requirements,
+        });
+        success('✨ Bob suggested requirements based on your description!');
+      }
+    } catch (error) {
+      console.error('Failed to suggest requirements:', error);
+      showError('Failed to get suggestions from Bob. Please try again.');
+    } finally {
+      setSuggestingRequirements(false);
+    }
+  };
+
+  const handleAnalyzeDescription = async () => {
+    if (!formData.description.trim()) {
+      return;
+    }
+
+    if (!mcpAvailable) {
+      return;
+    }
+
+    setAnalyzingInput(true);
+    try {
+      const result = await analyzeInput(formData.description, formData.requirements);
+      
+      if (result.success && result.feedback.length > 0) {
+        result.feedback.forEach(fb => {
+          if (fb.type === 'warning') {
+            showError(fb.message);
+          } else if (fb.type === 'info') {
+            info(fb.message);
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Failed to analyze input:', error);
+    } finally {
+      setAnalyzingInput(false);
+    }
+  };
+
+  const handleEnhanceDescription = async () => {
+    if (!formData.description.trim()) {
+      showError('Please enter a project description first');
+      return;
+    }
+
+    if (!geminiAvailable) {
+      showError('Gemini AI is not available. Please check the service status.');
+      return;
+    }
+
+    setEnhancingDescription(true);
+    try {
+      const result = await generateText({
+        prompt: `You are a technical project manager. Enhance and improve this project description to be more clear, detailed, and professional. Keep it concise but comprehensive. Original description: "${formData.description}"`,
+        temperature: 0.7,
+        max_tokens: 500
+      });
+
+      if (result.success && result.text) {
+        setFormData({
+          ...formData,
+          description: result.text.trim()
+        });
+        success('✨ Gemini enhanced your description!');
+      }
+    } catch (error) {
+      console.error('Failed to enhance description:', error);
+      showError('Failed to enhance description. Please try again.');
+    } finally {
+      setEnhancingDescription(false);
+    }
+  };
+
+  // Debounced analysis on description change
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (formData.description.trim().length > 10) {
+        handleAnalyzeDescription();
+      }
+    }, 1500);
+
+    return () => clearTimeout(timer);
+  }, [formData.description]);
+
   const requirementIcons = {
     needsDatabase: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -123,10 +269,27 @@ export function HomePage() {
           </h1>
           <p className="text-xl text-gray-700 font-medium">
             Powered by <span className="font-bold text-blue-600">BOB</span> - IBM's AI Assistant
+            {geminiAvailable && <span className="ml-2 text-purple-600">+ ✨ Gemini AI</span>}
           </p>
           <p className="text-gray-600 mt-3 max-w-2xl mx-auto">
             Describe your project and let BOB orchestrate specialized agents to build it for you
           </p>
+          {(mcpAvailable || geminiAvailable) && (
+            <div className="flex items-center justify-center gap-4 mt-4">
+              {mcpAvailable && (
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                  <span className="w-2 h-2 bg-blue-600 rounded-full mr-2 animate-pulse"></span>
+                  Bob Ready
+                </span>
+              )}
+              {geminiAvailable && (
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                  <span className="w-2 h-2 bg-purple-600 rounded-full mr-2 animate-pulse"></span>
+                  Gemini Ready
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Main Form */}
@@ -149,9 +312,47 @@ export function HomePage() {
 
             {/* Project Description */}
             <div className="mb-8">
-              <label className="block text-sm font-semibold text-gray-800 mb-2">
-                Project Description *
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-semibold text-gray-800">
+                  Project Description *
+                </label>
+                <div className="flex items-center gap-3">
+                  {geminiAvailable && (
+                    <button
+                      type="button"
+                      onClick={handleEnhanceDescription}
+                      disabled={enhancingDescription || !formData.description.trim()}
+                      className="text-xs text-purple-600 hover:text-purple-700 font-medium flex items-center disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                    >
+                      {enhancingDescription ? (
+                        <>
+                          <svg className="animate-spin h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                          </svg>
+                          Enhancing...
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                          </svg>
+                          ✨ Enhance with Gemini
+                        </>
+                      )}
+                    </button>
+                  )}
+                  {mcpAvailable && analyzingInput && (
+                    <span className="text-xs text-blue-600 flex items-center">
+                      <svg className="animate-spin h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      Bob is analyzing...
+                    </span>
+                  )}
+                </div>
+              </div>
               <textarea
                 required
                 value={formData.description}
@@ -164,9 +365,36 @@ export function HomePage() {
 
             {/* Requirements */}
             <div className="mb-8">
-              <label className="block text-sm font-semibold text-gray-800 mb-4">
-                Project Requirements
-              </label>
+              <div className="flex items-center justify-between mb-4">
+                <label className="block text-sm font-semibold text-gray-800">
+                  Project Requirements
+                </label>
+                {mcpAvailable && (
+                  <button
+                    type="button"
+                    onClick={handleSuggestRequirements}
+                    disabled={suggestingRequirements || !formData.description.trim()}
+                    className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {suggestingRequirements ? (
+                      <>
+                        <svg className="animate-spin h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                        </svg>
+                        Suggesting...
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                        </svg>
+                        Ask Bob to Suggest
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {Object.entries(requirementIcons).map(([key, icon]) => {
                   const isChecked = formData.requirements[key as keyof ProjectRequirements];

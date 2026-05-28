@@ -1,24 +1,255 @@
-# MCP Integration Guide - Local Development with Bob
+# MCP Integration - Bob Frontend Assistance
 
-This guide explains how to use the MCP (Model Context Protocol) integration to connect your backend to Bob in VS Code for dynamic AI-powered code generation **without requiring an API key**.
+## Overview
 
-## 🎯 What This Enables
+This document describes the MCP (Model Context Protocol) integration that enables Bob to assist users in real-time as they input project details in the frontend.
 
-Instead of using static templates, your backend can now:
-- ✅ Use Bob's AI intelligence for dynamic code generation
-- ✅ Analyze requirements intelligently
-- ✅ Generate context-aware code based on project descriptions
-- ✅ Work locally without API costs during development
+## Architecture
 
-## 📋 Prerequisites
+```
+┌─────────────┐         ┌──────────────┐         ┌─────────────┐
+│   Frontend  │ ──HTTP─→│   Backend    │ ──MCP──→│  Bob (IDE)  │
+│  (React)    │ ←──────│  (FastAPI)   │ ←───────│             │
+└─────────────┘         └──────────────┘         └─────────────┘
+```
 
-- Node.js installed (v18 or higher)
-- VS Code with Bob extension
-- Python 3.8+
+### Components
 
-## 🚀 Quick Start
+1. **Frontend** (`frontend/src/`)
+   - Collects user input (project name, description, requirements)
+   - Calls backend MCP proxy endpoints
+   - Displays real-time feedback from Bob
 
-### 1. Build the MCP Server
+2. **Backend MCP Proxy** (`backend/api/routes/mcp.py`)
+   - Exposes MCP capabilities as REST endpoints
+   - Proxies requests to MCP client
+   - Handles errors and provides fallbacks
+
+3. **MCP Client** (`backend/services/mcp_client.py`)
+   - Communicates with MCP server via stdio
+   - Sends requests to Bob in VS Code
+   - Returns Bob's analysis and suggestions
+
+4. **MCP Servers** (`.bob/mcp.json`)
+   - `bob-code-generator`: Provides code generation context
+   - `backend-integration`: Connects to backend API
+   - `sequential-thinking`: Advanced reasoning
+
+## Features
+
+### 1. Real-time Description Analysis
+
+As users type their project description, Bob analyzes it and provides feedback:
+
+```typescript
+// Automatically triggered after 1.5s of no typing
+const handleAnalyzeDescription = async () => {
+  const result = await analyzeInput(formData.description, formData.requirements);
+  // Display feedback to user
+};
+```
+
+**Feedback Types:**
+- ℹ️ **Info**: Helpful suggestions
+- ⚠️ **Warning**: Description too short or unclear
+- ❌ **Error**: Critical issues
+
+### 2. Smart Requirement Suggestions
+
+Bob can suggest requirements based on the project description:
+
+```typescript
+const handleSuggestRequirements = async () => {
+  const result = await suggestRequirements({ description: formData.description });
+  // Auto-check suggested requirements
+};
+```
+
+**Example:**
+- Description: "A blog website with user authentication"
+- Bob suggests: ✅ Database, ✅ Auth, ✅ UI, ✅ API
+
+### 3. Description Enhancement
+
+Bob can enhance and clarify project descriptions:
+
+```typescript
+const result = await enhanceDescription({
+  description: formData.description,
+  requirements: formData.requirements
+});
+```
+
+## API Endpoints
+
+### POST `/api/mcp/enhance-description`
+
+Enhance a project description with Bob's assistance.
+
+**Request:**
+```json
+{
+  "description": "A blog website",
+  "requirements": {
+    "needsDatabase": true,
+    "needsAuth": false,
+    "needsPayment": false,
+    "needsAPI": true,
+    "needsUI": true
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "original_description": "A blog website",
+  "analysis": {
+    "status": "prompt_ready",
+    "prompt": "...",
+    "message": "This prompt should be processed by Bob in VS Code"
+  },
+  "message": "Description analyzed by Bob"
+}
+```
+
+### POST `/api/mcp/suggest-requirements`
+
+Get requirement suggestions based on description.
+
+**Request:**
+```json
+{
+  "description": "An e-commerce platform with payment processing"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "suggested_requirements": {
+    "needsDatabase": true,
+    "needsAuth": true,
+    "needsPayment": true,
+    "needsAPI": true,
+    "needsUI": true
+  },
+  "message": "Requirements suggested by Bob"
+}
+```
+
+### POST `/api/mcp/analyze-input`
+
+Analyze user input and provide real-time feedback.
+
+**Request:**
+```json
+{
+  "description": "blog",
+  "requirements": null
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "feedback": [
+    {
+      "type": "warning",
+      "message": "Description is quite short. Consider adding more details."
+    },
+    {
+      "type": "info",
+      "message": "Bob can suggest requirements based on your description."
+    }
+  ],
+  "message": "Input analyzed by Bob"
+}
+```
+
+### GET `/api/mcp/status`
+
+Check if MCP server is available.
+
+**Response:**
+```json
+{
+  "available": true,
+  "message": "MCP server is ready",
+  "server_path": "/path/to/mcp-server/build/index.js"
+}
+```
+
+## Frontend Integration
+
+### 1. Import MCP Functions
+
+```typescript
+import { 
+  suggestRequirements,
+  analyzeInput,
+  getMCPStatus
+} from '../services/api';
+```
+
+### 2. Check MCP Availability
+
+```typescript
+useEffect(() => {
+  const checkMCPStatus = async () => {
+    const status = await getMCPStatus();
+    setMcpAvailable(status.available);
+    if (status.available) {
+      info('🤖 Bob is ready to assist you!');
+    }
+  };
+  checkMCPStatus();
+}, []);
+```
+
+### 3. Add UI Elements
+
+```tsx
+{mcpAvailable && (
+  <button onClick={handleSuggestRequirements}>
+    <svg>...</svg>
+    Ask Bob to Suggest
+  </button>
+)}
+```
+
+## Configuration
+
+### MCP Server Configuration (`.bob/mcp.json`)
+
+```json
+{
+  "mcpServers": {
+    "bob-code-generator": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["mcp-server/build/bob-code-generator.js"],
+      "disabled": false
+    },
+    "backend-integration": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["mcp-server/build/backend-tools.js"],
+      "env": {
+        "BACKEND_URL": "http://localhost:8000"
+      },
+      "disabled": false
+    }
+  }
+}
+```
+
+## Setup Instructions
+
+### 1. Build MCP Servers
 
 ```bash
 cd mcp-server
@@ -26,295 +257,82 @@ npm install
 npm run build
 ```
 
-### 2. Configure VS Code (Optional)
-
-Add to your VS Code settings to enable MCP:
-
-```json
-{
-  "mcp.servers": {
-    "bob-orchestrator": {
-      "command": "node",
-      "args": ["${workspaceFolder}/mcp-server/build/index.js"]
-    }
-  }
-}
-```
-
-### 3. Test the Integration
+### 2. Start Backend
 
 ```bash
 cd backend
-python -m services.mcp_client
+python -m uvicorn main:app --reload
 ```
 
-You should see:
-```
-INFO:__main__:Testing MCP connection...
-INFO:__main__:MCP test successful: prompt_ready
-```
-
-### 4. Run Your Backend
+### 3. Start Frontend
 
 ```bash
-cd backend
-python main.py
+cd frontend
+npm install
+npm run dev
 ```
 
-The backend will automatically detect and use MCP if available.
+### 4. Verify MCP Connection
 
-## 🔧 How It Works
+1. Open the frontend at `http://localhost:5173`
+2. Look for "🤖 Bob is ready to assist you!" message
+3. Try typing a project description
+4. Click "Ask Bob to Suggest" button
 
-### Architecture
+## Troubleshooting
 
-```
-┌─────────────────┐
-│  Frontend       │
-│  (React)        │
-└────────┬────────┘
-         │ HTTP
-         ▼
-┌─────────────────┐
-│  Backend        │
-│  (FastAPI)      │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│ BOBOrchestrator │ ◄─── use_mcp=True
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│  MCP Client     │
-│  (Python)       │
-└────────┬────────┘
-         │ JSON-RPC
-         ▼
-┌─────────────────┐
-│  MCP Server     │
-│  (Node.js)      │
-└────────┬────────┘
-         │ stdio
-         ▼
-┌─────────────────┐
-│  Bob in VS Code │
-│  (Claude AI)    │
-└─────────────────┘
-```
+### MCP Server Not Available
 
-### Request Flow
+**Error:** "MCP server not available"
 
-1. **User creates project** in frontend
-2. **Backend receives request** and calls `BOBOrchestrator`
-3. **Orchestrator checks MCP availability** and calls `mcp_client`
-4. **MCP client sends JSON-RPC request** to MCP server
-5. **MCP server formats prompt** with agent persona and project details
-6. **Bob processes prompt** (in VS Code) and generates code
-7. **Response flows back** through the chain to frontend
+**Solutions:**
+1. Build MCP servers: `cd mcp-server && npm run build`
+2. Check `.bob/mcp.json` configuration
+3. Verify Bob is running in VS Code
+4. Check backend logs for MCP connection errors
 
-## 📝 Usage Examples
+### No Suggestions from Bob
 
-### Example 1: Create Project with MCP
+**Error:** "Failed to get suggestions from Bob"
 
-```python
-from services.bob_orchestrator import BOBOrchestrator
+**Solutions:**
+1. Check backend is running: `http://localhost:8000/health`
+2. Verify MCP status: `http://localhost:8000/api/mcp/status`
+3. Check backend logs for errors
+4. Ensure description is not empty
 
-# Initialize with MCP enabled (default)
-orchestrator = BOBOrchestrator(
-    db=db_client,
-    token_monitor=token_monitor,
-    realtime=realtime_service,
-    use_mcp=True  # Enable MCP
-)
+### Analysis Not Working
 
-# Analyze requirements - Bob will intelligently suggest agents
-analysis = await orchestrator.analyze_requirements(
-    project_id="proj_123",
-    description="Build a modern e-commerce platform with user authentication",
-    requirements={
-        "needsDatabase": True,
-        "needsAuth": True,
-        "needsPayment": True
-    }
-)
+**Issue:** No feedback when typing
 
-print(analysis["selected_agents"])
-# Output: ['ui_specialist', 'api_specialist', 'auth_specialist', ...]
-```
+**Solutions:**
+1. Wait 1.5 seconds after typing (debounced)
+2. Type at least 10 characters
+3. Check browser console for errors
+4. Verify MCP is available
 
-### Example 2: Generate Code with Bob
+## Benefits
 
-```python
-# Execute agent - Bob will generate actual code
-result = await orchestrator.execute_agent(
-    project_id="proj_123",
-    task_id="task_1",
-    agent_id="ui_specialist",
-    input_data={
-        "project_description": "Modern e-commerce platform",
-        "requirements": {"needsAuth": True},
-        "previous_outputs": []
-    }
-)
+1. **Real-time Assistance**: Bob helps users as they type
+2. **Smart Suggestions**: Automatic requirement detection
+3. **Better Input Quality**: Feedback on description clarity
+4. **Reduced Errors**: Validation before project creation
+5. **Enhanced UX**: Users feel guided by AI
 
-# Result contains AI-generated code
-print(result["output"]["artifacts"])
-# [
-#   {"path": "src/App.tsx", "content": "...generated React code..."},
-#   {"path": "src/components/Login.tsx", "content": "..."},
-#   ...
-# ]
-```
+## Future Enhancements
 
-### Example 3: Disable MCP (Use Static Templates)
+1. **Description Auto-completion**: Bob suggests completions
+2. **Template Suggestions**: Bob recommends project templates
+3. **Cost Estimation**: Real-time cost estimates as user types
+4. **Agent Preview**: Show which agents will be selected
+5. **Multi-language Support**: Bob assists in multiple languages
 
-```python
-# Disable MCP to use static templates
-orchestrator = BOBOrchestrator(
-    db=db_client,
-    token_monitor=token_monitor,
-    realtime=realtime_service,
-    use_mcp=False  # Disable MCP
-)
-```
+## Technical Notes
 
-## 🔍 Checking MCP Status
+- MCP communication uses stdio transport
+- Backend acts as proxy to avoid CORS issues
+- Frontend uses debouncing to reduce API calls
+- Fallback to rule-based logic if MCP unavailable
+- All MCP calls are async and non-blocking
 
-The orchestrator logs its mode on initialization:
-
-```python
-# MCP enabled and available
-# Output: ✓ MCP mode enabled - using Bob in VS Code for dynamic generation
-
-# MCP disabled or unavailable
-# Output: ✗ MCP mode disabled - using static templates
-```
-
-## 🐛 Troubleshooting
-
-### Issue: "MCP server not found"
-
-**Cause:** MCP server hasn't been built
-
-**Solution:**
-```bash
-cd mcp-server
-npm run build
-```
-
-### Issue: "MCP mode disabled - using static templates"
-
-**Cause:** MCP server not available or not built
-
-**Check:**
-1. Is the MCP server built? (`mcp-server/build/index.js` exists?)
-2. Is Node.js installed? (`node --version`)
-3. Check logs for specific error messages
-
-### Issue: "MCP test failed"
-
-**Cause:** MCP server can't be executed
-
-**Solution:**
-```bash
-# Test manually
-cd mcp-server
-node build/index.js
-
-# Should start without errors
-# Press Ctrl+C to exit
-```
-
-### Issue: Code generation still uses templates
-
-**Current Limitation:** The MCP integration generates prompts for Bob but doesn't automatically process them yet. This is a proof-of-concept showing the integration architecture.
-
-**Full Implementation Would:**
-1. Send prompt to Bob through MCP
-2. Bob processes with Claude AI
-3. Returns structured code/artifacts
-4. Backend uses generated code
-
-**Current Behavior:**
-- Generates prompts (logged)
-- Falls back to static templates
-- Demonstrates the integration flow
-
-## 🎓 Understanding the Code
-
-### MCP Server (`mcp-server/src/index.ts`)
-
-Defines two tools:
-- `generate_code`: Creates prompts for code generation
-- `analyze_requirements`: Creates prompts for requirement analysis
-
-### MCP Client (`backend/services/mcp_client.py`)
-
-Python client that:
-- Spawns MCP server process
-- Sends JSON-RPC requests
-- Receives and parses responses
-
-### BOB Orchestrator (`backend/services/bob_orchestrator.py`)
-
-Modified to:
-- Detect MCP availability
-- Call MCP client when enabled
-- Fall back to static templates when needed
-
-## 🚀 Production Deployment
-
-**Important:** MCP integration is for **local development only**.
-
-For production, use the Anthropic API:
-
-```python
-# Install: pip install anthropic
-import anthropic
-import os
-
-client = anthropic.Anthropic(
-    api_key=os.environ.get("ANTHROPIC_API_KEY")
-)
-
-message = client.messages.create(
-    model="claude-3-5-sonnet-20241022",
-    max_tokens=8000,
-    system=agent_persona,
-    messages=[{"role": "user", "content": prompt}]
-)
-
-generated_code = message.content[0].text
-```
-
-## 📚 Additional Resources
-
-- [MCP Server README](mcp-server/README.md) - Detailed MCP server documentation
-- [Anthropic API Docs](https://docs.anthropic.com/) - For production deployment
-- [Model Context Protocol](https://modelcontextprotocol.io/) - MCP specification
-
-## 💡 Benefits of This Approach
-
-### For Development
-- ✅ No API costs during development
-- ✅ Use existing Bob access in VS Code
-- ✅ Test AI integration locally
-- ✅ Rapid iteration without API limits
-
-### For Production
-- ✅ Easy migration to Anthropic API
-- ✅ Same prompts and personas work
-- ✅ Scalable and reliable
-- ✅ Professional deployment
-
-## 🎉 Next Steps
-
-1. **Test the integration** - Create a project and watch the logs
-2. **Experiment with prompts** - Modify agent personas in `backend/agents/specialists/`
-3. **Implement full MCP flow** - Connect Bob's responses back to backend
-4. **Deploy to production** - Switch to Anthropic API for live deployment
-
----
-
-**Made with Bob** 🤖
+## Made with Bob

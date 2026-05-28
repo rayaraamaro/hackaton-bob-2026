@@ -6,14 +6,26 @@
   "main": "build/index.js",
   "scripts": {
     "build": "tsc",
+    "build:backend": "tsc && echo Backend tools MCP server built successfully",
+    "build:generator": "tsc && echo Bob code generator MCP server built successfully",
+    "build:all": "tsc && echo All MCP servers built successfully",
     "start": "node build/index.js",
-    "dev": "tsc && node build/index.js"
+    "start:backend": "node build/backend-tools.js",
+    "start:generator": "node build/bob-code-generator.js",
+    "dev": "tsc && node build/index.js",
+    "dev:backend": "tsc && node build/backend-tools.js",
+    "dev:generator": "tsc && node build/bob-code-generator.js"
   },
-  "keywords": ["mcp", "bob", "orchestrator"],
+  "keywords": [
+    "mcp",
+    "bob",
+    "orchestrator"
+  ],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.0.0"
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "@modelcontextprotocol/server-sequential-thinking": "^2025.12.18"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

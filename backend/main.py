@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from api.routes import projects, agents, websocket
+from api.routes import projects, agents, websocket, mcp, gemini
 from config.settings import settings
 from database import init_db, close_db
 
@@ -34,13 +34,13 @@ async def lifespan(app: FastAPI):
     
     try:
         from agents.agent_loader import AGENT_DEFINITIONS
-        logger.info(f"✓ Loaded {len(AGENT_DEFINITIONS)} agents")
-        logger.info(f"✓ Agents: {list(AGENT_DEFINITIONS.keys())}")
+        logger.info(f"[OK] Loaded {len(AGENT_DEFINITIONS)} agents")
+        logger.info(f"[OK] Agents: {list(AGENT_DEFINITIONS.keys())}")
     except Exception as e:
         logger.error(f"✗ Failed to load agents: {e}")
     
     await init_db()
-    logger.info("✓ Database initialized")
+    logger.info("[OK] Database initialized")
     logger.info("=" * 60)
     
     yield
@@ -73,6 +73,8 @@ app.add_middleware(
 app.include_router(projects.router, prefix="/api/projects", tags=["projects"])
 app.include_router(agents.router, prefix="/api/agents", tags=["agents"])
 app.include_router(websocket.router, prefix="/ws", tags=["websocket"])
+app.include_router(mcp.router, tags=["mcp"])
+app.include_router(gemini.router, tags=["gemini"])
 
 
 # Health check
